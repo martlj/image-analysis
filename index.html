@@ -9,17 +9,28 @@
         text-align: center;
         margin-top: 50px;
     }
-    #result {
+    #images-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
         margin-top: 20px;
+    }
+    #original-image,
+    #thresholded-image {
+        max-width: 400px;
+        max-height: 300px;
+        margin: 0 10px;
     }
 </style>
 </head>
 <body>
 <div id="container">
     <input type="file" id="upload" accept="image/*">
-    <canvas id="canvas" width="400" height="300" style="border:1px solid #000;"></canvas>
     <input type="range" id="threshold" min="0" max="255" value="127" step="1">
-    <div id="result"></div>
+    <div id="images-container">
+        <img id="original-image">
+        <canvas id="thresholded-image"></canvas>
+    </div>
 </div>
 
 <script>
@@ -33,11 +44,7 @@ function handleFileSelect(event) {
     reader.onload = function(event) {
         const img = new Image();
         img.onload = function() {
-            const canvas = document.getElementById('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
+            document.getElementById('original-image').src = event.target.result;
             applyThresholdAndDisplay();
         }
         img.src = event.target.result;
@@ -47,13 +54,22 @@ function handleFileSelect(event) {
 
 function applyThresholdAndDisplay() {
     const threshold = document.getElementById('threshold').value;
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const originalImage = document.getElementById('original-image');
+    const thresholdedCanvas = document.getElementById('thresholded-image');
+    const ctx = thresholdedCanvas.getContext('2d');
+
+    thresholdedCanvas.width = originalImage.width;
+    thresholdedCanvas.height = originalImage.height;
+
+    // Draw the original image onto the canvas
+    ctx.drawImage(originalImage, 0, 0, thresholdedCanvas.width, thresholdedCanvas.height);
+
+    // Get the image data from the canvas
+    const imageData = ctx.getImageData(0, 0, thresholdedCanvas.width, thresholdedCanvas.height);
     const thresholdedImageData = applyThreshold(imageData, threshold);
+
+    // Put the thresholded image data onto the canvas
     ctx.putImageData(thresholdedImageData, 0, 0);
-    const binaryImageData = getBinaryImageData(thresholdedImageData);
-    document.getElementById('result').innerHTML = `<img src="${binaryImageData}">`;
 }
 
 function applyThreshold(imageData, threshold) {
@@ -67,15 +83,6 @@ function applyThreshold(imageData, threshold) {
         pixels[i] = pixels[i + 1] = pixels[i + 2] = newValue;
     }
     return imageData;
-}
-
-function getBinaryImageData(imageData) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = imageData.width;
-    canvas.height = imageData.height;
-    ctx.putImageData(imageData, 0, 0);
-    return canvas.toDataURL();
 }
 </script>
 </body>
