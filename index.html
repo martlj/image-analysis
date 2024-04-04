@@ -9,35 +9,34 @@
         text-align: center;
         margin-top: 50px;
     }
-    .image-container {
-        display: inline-block;
-        width: 45%;
-    }
-    canvas {
-        border: 1px solid #000;
-        margin: 10px;
-        max-width: 100%;
-        height: auto;
-    }
-    #slider-container {
+    #images-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
         margin-top: 20px;
+    }
+    #original-image,
+    #thresholded-image {
+        max-width: 400px;
+        max-height: 300px;
+        margin: 0 10px;
     }
 </style>
 </head>
 <body>
 <div id="container">
     <input type="file" id="upload" accept="image/*">
-    <div id="slider-container">
-        <label for="threshold">Threshold Value:</label>
-        <input type="range" id="threshold" min="0" max="255" value="127">
-        <span id="thresholdValue">127</span>
+    <input type="range" id="threshold" min="0" max="255" value="127" step="1">
+    <button id="applyThresholdButton">Apply Threshold</button>
+    <div id="images-container">
+        <img id="original-image">
+        <canvas id="thresholded-image"></canvas>
     </div>
-    <button id="otsuButton">Calculate Threshold (Otsu Method)</button>
-    <div id="images-container"></div>
 </div>
 
 <script>
-document.getElementById('upload').addEventListener('change', handleFileSelect);
+document.getElementById('upload').addEventListener('change', handleFileSelect, false);
+document.getElementById('threshold').addEventListener('input', applyThresholdAndDisplay, false);
 
 function handleFileSelect(event) {
     const file = event.target.files[0];
@@ -46,69 +45,36 @@ function handleFileSelect(event) {
     reader.onload = function(event) {
         const img = new Image();
         img.onload = function() {
-            displayImages(img);
+            document.getElementById('original-image').src = event.target.result;
+            applyThresholdAndDisplay();
         }
         img.src = event.target.result;
     };
     reader.readAsDataURL(file);
 }
 
-function displayImages(originalImage) {
-    const thresholdSlider = document.getElementById('threshold');
-    const thresholdValueDisplay = document.getElementById('thresholdValue');
-    const imagesContainer = document.getElementById('images-container');
-    
-    thresholdSlider.addEventListener('input', function() {
-        thresholdValueDisplay.textContent = thresholdSlider.value;
-        displayBinaryImage(originalImage, Number(thresholdSlider.value));
-    });
+// function applyThresholdAndDisplay() {
+//     const threshold = document.getElementById('threshold').value;
+//     const originalImage = document.getElementById('original-image');
+//     const thresholdedCanvas = document.getElementById('thresholded-image');
+//     const ctx = thresholdedCanvas.getContext('2d');
 
-    const otsuButton = document.getElementById('otsuButton');
-    otsuButton.addEventListener('click', function() {
-        const otsuThreshold = calculateOtsuThreshold(originalImage);
-        thresholdSlider.value = otsuThreshold;
-        thresholdValueDisplay.textContent = otsuThreshold;
-        displayBinaryImage(originalImage, otsuThreshold);
-    });
+//     thresholdedCanvas.width = originalImage.width;
+//     thresholdedCanvas.height = originalImage.height;
 
-    imagesContainer.innerHTML = '';
+//     // Draw the original image onto the canvas
+//     ctx.drawImage(originalImage, 0, 0, thresholdedCanvas.width, thresholdedCanvas.height);
 
-    const canvasOriginal = createCanvas(originalImage);
-    canvasOriginal.classList.add('image-container');
-    imagesContainer.appendChild(canvasOriginal);
+//     // Get the image data from the canvas
+//     const imageData = ctx.getImageData(0, 0, thresholdedCanvas.width, thresholdedCanvas.height);
+//     const thresholdedImageData = applyThreshold(imageData, threshold);
 
-    const initialThreshold = Number(thresholdSlider.value);
-    displayBinaryImage(originalImage, initialThreshold);
-}
+//     // Put the thresholded image data onto the canvas
+//     ctx.putImageData(thresholdedImageData, 0, 0);
+// }
 
-function createCanvas(image) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = image.width;
-    canvas.height = image.height;
-    ctx.drawImage(image, 0, 0);
-    return canvas;
-}
-
-function displayBinaryImage(originalImage, threshold) {
-    const binaryImageData = applyThresholding(originalImage, threshold);
-    const binaryImage = new Image();
-    binaryImage.src = binaryImageData;
-    const canvasBinary = createCanvas(binaryImage);
-    canvasBinary.classList.add('image-container');
-    document.getElementById('images-container').appendChild(canvasBinary);
-}
-
-function applyThresholding(image, threshold) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = image.width;
-    canvas.height = image.height;
-    ctx.drawImage(image, 0, 0);
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+function applyThreshold(imageData, threshold) {
     const pixels = imageData.data;
-
     for (let i = 0; i < pixels.length; i += 4) {
         const r = pixels[i];
         const g = pixels[i + 1];
@@ -117,74 +83,76 @@ function applyThresholding(image, threshold) {
         const newValue = gray < threshold ? 0 : 255;
         pixels[i] = pixels[i + 1] = pixels[i + 2] = newValue;
     }
-
-    ctx.putImageData(imageData, 0, 0);
-
-    return canvas.toDataURL();
+    return imageData;
 }
 
-function calculateOtsuThreshold(image) {
-    const grayValues = getGrayValues(image);
-    const histogram = getHistogram(grayValues);
-    const totalPixels = image.width * image.height;
+function calculateOtsuThreshold(imageData) {
+    const histogram = new Array(256).fill(0);
+    const pixels = imageData.data;
+    const totalPixels = imageData.width * imageData.height;
+
+    // Compute histogram
+    for (let i = 0; i < pixels.length; i += 4) {
+        const gray = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+        histogram[Math.floor(gray)]++;
+    }
 
     let sum = 0;
-    for (let i = 0; i < 256; i++) {
+    for (let i = 0; i < 256; ++i) {
         sum += i * histogram[i];
     }
 
     let sumB = 0;
     let wB = 0;
     let wF = 0;
-    let varMax = 0;
+    let maxVar = 0;
     let threshold = 0;
 
-    for (let t = 0; t < 256; t++) {
-        wB += histogram[t];
+    for (let i = 0; i < 256; ++i) {
+        wB += histogram[i];
         if (wB === 0) continue;
+
         wF = totalPixels - wB;
         if (wF === 0) break;
 
-        sumB += t * histogram[t];
+        sumB += i * histogram[i];
+
         const mB = sumB / wB;
         const mF = (sum - sumB) / wF;
 
-        const varBetween = wB * wF * (mB - mF) * (mB - mF);
+        const varBetween = wB * wF * Math.pow(mB - mF, 2);
 
-        if (varBetween > varMax) {
-            varMax = varBetween;
-            threshold = t;
+        if (varBetween > maxVar) {
+            maxVar = varBetween;
+            threshold = i;
         }
     }
 
     return threshold;
 }
 
-function getGrayValues(image) {
-    const canvas = createCanvas(image);
-    const ctx = canvas.getContext('2d');
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const pixels = imageData.data;
-    const grayValues = [];
+function applyThresholdAndDisplay() {
+    const originalImage = document.getElementById('original-image');
+    const thresholdedCanvas = document.getElementById('thresholded-image');
+    const ctx = thresholdedCanvas.getContext('2d');
 
-    for (let i = 0; i < pixels.length; i += 4) {
-        const r = pixels[i];
-        const g = pixels[i + 1];
-        const b = pixels[i + 2];
-        const gray = (r + g + b) / 3;
-        grayValues.push(gray);
-    }
+    thresholdedCanvas.width = originalImage.width;
+    thresholdedCanvas.height = originalImage.height;
 
-    return grayValues;
+    // Draw the original image onto the canvas
+    ctx.drawImage(originalImage, 0, 0, thresholdedCanvas.width, thresholdedCanvas.height);
+
+    // Get the image data from the canvas
+    const imageData = ctx.getImageData(0, 0, thresholdedCanvas.width, thresholdedCanvas.height);
+    
+    // Calculate threshold value using Otsu's method
+    const otsuThreshold = calculateOtsuThreshold(imageData);
+
+    // Apply the calculated threshold and display
+    const thresholdedImageData = applyThreshold(imageData, otsuThreshold);
+    ctx.putImageData(thresholdedImageData, 0, 0);
 }
 
-function getHistogram(grayValues) {
-    const histogram = Array(256).fill(0);
-    grayValues.forEach(value => {
-        histogram[Math.floor(value)]++;
-    });
-    return histogram;
-}
 </script>
 </body>
 </html>
