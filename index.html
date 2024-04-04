@@ -37,6 +37,7 @@
 <script>
 document.getElementById('upload').addEventListener('change', handleFileSelect, false);
 document.getElementById('threshold').addEventListener('input', applyThresholdAndDisplay, false);
+document.getElementById('applyThresholdButton').addEventListener('click', applyThresholdAndDisplay, false);
 
 function handleFileSelect(event) {
     const file = event.target.files[0];
