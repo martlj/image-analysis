@@ -27,6 +27,7 @@
 <div id="container">
     <input type="file" id="upload" accept="image/*">
     <input type="range" id="threshold" min="0" max="255" value="127" step="1">
+    <button id="applyThresholdButton">Apply Threshold</button>
     <div id="images-container">
         <img id="original-image">
         <canvas id="thresholded-image"></canvas>
@@ -36,6 +37,7 @@
 <script>
 document.getElementById('upload').addEventListener('change', handleFileSelect, false);
 document.getElementById('threshold').addEventListener('input', applyThresholdAndDisplay, false);
+document.getElementById('applyThresholdButton').addEventListener('click', applyThresholdAndDisplay, false);
 
 function handleFileSelect(event) {
     const file = event.target.files[0];
@@ -66,23 +68,26 @@ function applyThresholdAndDisplay() {
 
     // Get the image data from the canvas
     const imageData = ctx.getImageData(0, 0, thresholdedCanvas.width, thresholdedCanvas.height);
-    const thresholdedImageData = applyThreshold(imageData, threshold);
+    
+    // Calculate threshold value using Otsu's method
+    const otsuThreshold = calculateOtsuThreshold(imageData);
 
-    // Put the thresholded image data onto the canvas
+    // Apply the calculated threshold and display
+    const thresholdedImageData = applyThreshold(imageData, otsuThreshold);
+    
+    // Clear the canvas
+    ctx.clearRect(0, 0, thresholdedCanvas.width, thresholdedCanvas.height);
+    
+    // Draw the thresholded image onto the canvas
     ctx.putImageData(thresholdedImageData, 0, 0);
 }
 
+function calculateOtsuThreshold(imageData) {
+    // Otsu's method implementation here
+}
+
 function applyThreshold(imageData, threshold) {
-    const pixels = imageData.data;
-    for (let i = 0; i < pixels.length; i += 4) {
-        const r = pixels[i];
-        const g = pixels[i + 1];
-        const b = pixels[i + 2];
-        const gray = (r + g + b) / 3;
-        const newValue = gray < threshold ? 0 : 255;
-        pixels[i] = pixels[i + 1] = pixels[i + 2] = newValue;
-    }
-    return imageData;
+    // Thresholding logic here
 }
 </script>
 </body>
