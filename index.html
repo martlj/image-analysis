@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Thresholding</title>
+<style>
+    #container {
+        text-align: center;
+        margin-top: 50px;
+    }
+    #result {
+        margin-top: 20px;
+    }
+</style>
+</head>
+<body>
+<div id="container">
+    <input type="file" id="upload" accept="image/*">
+    <canvas id="canvas" width="400" height="300" style="border:1px solid #000;"></canvas>
+    <input type="range" id="threshold" min="0" max="255" value="127" step="1">
+    <div id="result"></div>
+</div>
+
+<script>
+document.getElementById('upload').addEventListener('change', handleFileSelect, false);
+document.getElementById('threshold').addEventListener('input', applyThresholdAndDisplay, false);
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            applyThresholdAndDisplay();
+        }
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function applyThresholdAndDisplay() {
+    const threshold = document.getElementById('threshold').value;
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const thresholdedImageData = applyThreshold(imageData, threshold);
+    ctx.putImageData(thresholdedImageData, 0, 0);
+    const binaryImageData = getBinaryImageData(thresholdedImageData);
+    document.getElementById('result').innerHTML = `<img src="${binaryImageData}">`;
+}
+
+function applyThreshold(imageData, threshold) {
+    const pixels = imageData.data;
+    for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        const gray = (r + g + b) / 3;
+        const newValue = gray < threshold ? 0 : 255;
+        pixels[i] = pixels[i + 1] = pixels[i + 2] = newValue;
+    }
+    return imageData;
+}
+
+function getBinaryImageData(imageData) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = imageData.width;
+    canvas.height = imageData.height;
+    ctx.putImageData(imageData, 0, 0);
+    return canvas.toDataURL();
+}
+</script>
+</body>
+</html>
