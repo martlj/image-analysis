@@ -69,20 +69,14 @@
                         const clickedSquares = JSON.parse(localStorage.getItem('clickedSquares')) || {};
                         if (clickedSquares[squareKey]) {
                             delete clickedSquares[squareKey];
-                            localStorage.setItem('clickedSquares', JSON.stringify(clickedSquares));
-                            document.getElementById('counter').innerText = Object.keys(clickedSquares).length;
-                            
-                            // Redraw canvas without shaded square
-                            redrawCanvas(canvas, ctx, gridSize, img, clickedSquares);
                         } else {
                             clickedSquares[squareKey] = true;
-                            localStorage.setItem('clickedSquares', JSON.stringify(clickedSquares));
-                            document.getElementById('counter').innerText = Object.keys(clickedSquares).length;
-                            
-                            // Shade clicked square
-                            ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-                            ctx.fillRect(squareX * gridSize, squareY * gridSize, gridSize, gridSize);
                         }
+                        localStorage.setItem('clickedSquares', JSON.stringify(clickedSquares));
+                        document.getElementById('counter').innerText = Object.keys(clickedSquares).length;
+                        
+                        // Redraw canvas
+                        redrawCanvas(canvas, ctx, gridSize, img, clickedSquares);
                     });
                 };
                 img.src = event.target.result;
