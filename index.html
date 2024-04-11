@@ -1,159 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Image Thresholding</title>
-<style>
-    #container {
-        text-align: center;
-        margin-top: 50px;
-    }
-    #images-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-top: 20px;
-    }
-    #original-image,
-    #thresholded-image {
-        max-width: 400px;
-        max-height: 300px;
-        margin: 0 10px;
-    }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Image Click Counter</title>
+    <style>
+        #imageContainer {
+            position: relative;
+            display: inline-block;
+        }
+        #gridCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+    </style>
 </head>
 <body>
-<div id="container">
-    <input type="file" id="upload" accept="image/*">
-    <input type="range" id="threshold" min="0" max="255" value="127" step="1">
-    <button id="applyThresholdButton">Apply Threshold</button>
-    <div id="images-container">
-        <img id="original-image">
-        <canvas id="thresholded-image"></canvas>
+    <h1>Grid Image Click Counter</h1>
+    <input type="file" id="imageInput" accept="image/*">
+    <div id="imageContainer">
+        <canvas id="gridCanvas"></canvas>
     </div>
-</div>
+    <p>Clicks Counter: <span id="counter">0</span></p>
 
-<script>
-document.getElementById('upload').addEventListener('change', handleFileSelect, false);
-document.getElementById('threshold').addEventListener('input', applyThresholdAndDisplay, false);
-document.getElementById('applyThresholdButton').addEventListener('click', applyThresholdAndDisplay, false);
+    <script>
+        document.getElementById('imageInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-function handleFileSelect(event) {
-    const file = event.target.files[0];
-    const reader = new FileReader();
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.getElementById('gridCanvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
 
-    reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-            document.getElementById('original-image').src = event.target.result;
-            applyThresholdAndDisplay();
+                    // Reset counter
+                    document.getElementById('counter').innerText = '0';
+
+                    // Draw grid
+                    let gridSize = 100; // Double the original gridSize
+                    ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+                    for (let x = gridSize; x < canvas.width; x += gridSize) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, 0);
+                        ctx.lineTo(x, canvas.height);
+                        ctx.stroke();
+                    }
+                    for (let y = gridSize; y < canvas.height; y += gridSize) {
+                        ctx.beginPath();
+                        ctx.moveTo(0, y);
+                        ctx.lineTo(canvas.width, y);
+                        ctx.stroke();
+                    }
+
+                    // Track clicks
+                    canvas.addEventListener('click', function(event) {
+                        const rect = canvas.getBoundingClientRect();
+                        const x = event.clientX - rect.left;
+                        const y = event.clientY - rect.top;
+                        const squareX = Math.floor(x / gridSize);
+                        const squareY = Math.floor(y / gridSize);
+                        const squareKey = squareX + ',' + squareY;
+                        const clickedSquares = JSON.parse(localStorage.getItem('clickedSquares')) || {};
+                        if (clickedSquares[squareKey]) {
+                            delete clickedSquares[squareKey];
+                            localStorage.setItem('clickedSquares', JSON.stringify(clickedSquares));
+                            document.getElementById('counter').innerText = Object.keys(clickedSquares).length;
+                            
+                            // Redraw canvas without shaded square
+                            redrawCanvas(canvas, ctx, gridSize, img, clickedSquares);
+                        } else {
+                            clickedSquares[squareKey] = true;
+                            localStorage.setItem('clickedSquares', JSON.stringify(clickedSquares));
+                            document.getElementById('counter').innerText = Object.keys(clickedSquares).length;
+                            
+                            // Shade clicked square
+                            ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                            ctx.fillRect(squareX * gridSize, squareY * gridSize, gridSize, gridSize);
+                        }
+                    });
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function redrawCanvas(canvas, ctx, gridSize, img, clickedSquares) {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Redraw image
+            ctx.drawImage(img, 0, 0);
+            
+            // Draw grid
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+            for (let x = gridSize; x < canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = gridSize; y < canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Shade clicked squares
+            Object.keys(clickedSquares).forEach(key => {
+                const [squareX, squareY] = key.split(',').map(Number);
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                ctx.fillRect(squareX * gridSize, squareY * gridSize, gridSize, gridSize);
+            });
         }
-        img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
-}
-
-// function applyThresholdAndDisplay() {
-//     const threshold = document.getElementById('threshold').value;
-//     const originalImage = document.getElementById('original-image');
-//     const thresholdedCanvas = document.getElementById('thresholded-image');
-//     const ctx = thresholdedCanvas.getContext('2d');
-
-//     thresholdedCanvas.width = originalImage.width;
-//     thresholdedCanvas.height = originalImage.height;
-
-//     // Draw the original image onto the canvas
-//     ctx.drawImage(originalImage, 0, 0, thresholdedCanvas.width, thresholdedCanvas.height);
-
-//     // Get the image data from the canvas
-//     const imageData = ctx.getImageData(0, 0, thresholdedCanvas.width, thresholdedCanvas.height);
-//     const thresholdedImageData = applyThreshold(imageData, threshold);
-
-//     // Put the thresholded image data onto the canvas
-//     ctx.putImageData(thresholdedImageData, 0, 0);
-// }
-
-function applyThreshold(imageData, threshold) {
-    const pixels = imageData.data;
-    for (let i = 0; i < pixels.length; i += 4) {
-        const r = pixels[i];
-        const g = pixels[i + 1];
-        const b = pixels[i + 2];
-        const gray = (r + g + b) / 3;
-        const newValue = gray < threshold ? 0 : 255;
-        pixels[i] = pixels[i + 1] = pixels[i + 2] = newValue;
-    }
-    return imageData;
-}
-
-function calculateOtsuThreshold(imageData) {
-    const histogram = new Array(256).fill(0);
-    const pixels = imageData.data;
-    const totalPixels = imageData.width * imageData.height;
-
-    // Compute histogram
-    for (let i = 0; i < pixels.length; i += 4) {
-        const gray = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
-        histogram[Math.floor(gray)]++;
-    }
-
-    let sum = 0;
-    for (let i = 0; i < 256; ++i) {
-        sum += i * histogram[i];
-    }
-
-    let sumB = 0;
-    let wB = 0;
-    let wF = 0;
-    let maxVar = 0;
-    let threshold = 0;
-
-    for (let i = 0; i < 256; ++i) {
-        wB += histogram[i];
-        if (wB === 0) continue;
-
-        wF = totalPixels - wB;
-        if (wF === 0) break;
-
-        sumB += i * histogram[i];
-
-        const mB = sumB / wB;
-        const mF = (sum - sumB) / wF;
-
-        const varBetween = wB * wF * Math.pow(mB - mF, 2);
-
-        if (varBetween > maxVar) {
-            maxVar = varBetween;
-            threshold = i;
-        }
-    }
-
-    return threshold;
-}
-
-function applyThresholdAndDisplay() {
-    const originalImage = document.getElementById('original-image');
-    const thresholdedCanvas = document.getElementById('thresholded-image');
-    const ctx = thresholdedCanvas.getContext('2d');
-
-    thresholdedCanvas.width = originalImage.width;
-    thresholdedCanvas.height = originalImage.height;
-
-    // Draw the original image onto the canvas
-    ctx.drawImage(originalImage, 0, 0, thresholdedCanvas.width, thresholdedCanvas.height);
-
-    // Get the image data from the canvas
-    const imageData = ctx.getImageData(0, 0, thresholdedCanvas.width, thresholdedCanvas.height);
-    
-    // Calculate threshold value using Otsu's method
-    const otsuThreshold = calculateOtsuThreshold(imageData);
-
-    // Apply the calculated threshold and display
-    const thresholdedImageData = applyThreshold(imageData, otsuThreshold);
-    ctx.putImageData(thresholdedImageData, 0, 0);
-}
-
-</script>
+    </script>
 </body>
 </html>
