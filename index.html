@@ -15,13 +15,7 @@
             align-items: center;
             margin-bottom: 20px;
         }
-        #images {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
         img {
-            max-width: 400px;
             max-height: 400px;
             margin: 0 20px;
         }
@@ -38,7 +32,8 @@
 </head>
 <body>
     <h1>Image Thresholding</h1>
-    <div>
+    <button id="loadButton">Load Image</button>
+    <div id="imageOptions" style="display:none;">
         <label for="imageSelect">Choose an image:</label>
         <select id="imageSelect">
             <option value="images/1983.png">1983</option>
@@ -46,7 +41,7 @@
             <option value="images/2023.png">2023</option>
         </select>
     </div>
-    <div id="imageContainer">
+    <div id="imageContainer" style="display:none;">
         <div id="images">
             <img id="originalImage" src="" alt="Original Image">
             <img id="binaryImage" src="" alt="Binary Image">
@@ -60,6 +55,9 @@
         const binaryImage = document.getElementById('binaryImage');
         const thresholdSlider = document.getElementById('thresholdSlider');
         const pixelCountDisplay = document.getElementById('pixelCount');
+        const loadButton = document.getElementById('loadButton');
+        const imageOptions = document.getElementById('imageOptions');
+        const imageContainer = document.getElementById('imageContainer');
 
         let threshold = parseInt(thresholdSlider.value);
 
@@ -101,12 +99,21 @@
         }
 
         // Load the initial image
-        updateBinaryImage();
+        loadButton.addEventListener('click', function() {
+            loadButton.style.display = 'none';
+            imageOptions.style.display = 'block';
+        });
 
         // Update binary image when slider is moved
         thresholdSlider.addEventListener('input', function() {
             threshold = parseInt(thresholdSlider.value);
             updateBinaryImage();
+        });
+
+        // Update images when dropdown option is changed
+        imageSelect.addEventListener('change', function() {
+            updateBinaryImage();
+            imageContainer.style.display = 'flex';
         });
     </script>
 </body>
