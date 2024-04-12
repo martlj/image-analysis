@@ -8,32 +8,33 @@
         body {
             font-family: Arial, sans-serif;
             text-align: center;
+            margin: 0;
+            padding: 0;
         }
         #imageContainer {
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-bottom: 20px;
+            margin-top: 20px;
         }
-        img {
-            max-height: 400px;
-            margin: 0 20px;
+        canvas {
+            max-height: 80vh;
+            border: 1px solid #000;
+            margin: 0 10px;
         }
         #thresholdSlider {
-            width: 50%;
-            margin-bottom: 20px;
+            width: 80%;
+            margin-top: 20px;
         }
         #pixelCount {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 20px;
+            font-size: 18px;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
     <h1>Image Thresholding</h1>
-    <button id="loadButton">Load Image</button>
-    <div id="imageOptions" style="display:none;">
+    <div>
         <label for="imageSelect">Choose an image:</label>
         <select id="imageSelect">
             <option value="images/1983.png">1983</option>
@@ -41,81 +42,77 @@
             <option value="images/2023.png">2023</option>
         </select>
     </div>
-    <div id="imageContainer" style="display:none;">
-        <div id="images">
-            <img id="originalImage" src="" alt="Original Image">
-            <img id="binaryImage" src="" alt="Binary Image">
-        </div>
+    <div id="imageContainer">
+        <canvas id="originalCanvas"></canvas>
+        <canvas id="thresholdedCanvas"></canvas>
     </div>
-    <input type="range" min="0" max="255" value="128" id="thresholdSlider">
-    <div id="pixelCount">Pixel Count: 0</div>
+    <input type="range" min="0" max="255" value="255" id="thresholdSlider">
+    <div id="pixelCount">True Pixels Count: 0</div>
 
     <script>
-        const originalImage = document.getElementById('originalImage');
-        const binaryImage = document.getElementById('binaryImage');
+        const originalCanvas = document.getElementById('originalCanvas');
+        const originalCtx = originalCanvas.getContext('2d');
+        const thresholdedCanvas = document.getElementById('thresholdedCanvas');
+        const thresholdedCtx = thresholdedCanvas.getContext('2d');
+        const imageSelect = document.getElementById('imageSelect');
         const thresholdSlider = document.getElementById('thresholdSlider');
         const pixelCountDisplay = document.getElementById('pixelCount');
-        const loadButton = document.getElementById('loadButton');
-        const imageOptions = document.getElementById('imageOptions');
-        const imageContainer = document.getElementById('imageContainer');
 
         let threshold = parseInt(thresholdSlider.value);
 
-        // Function to update binary image based on threshold
-        function updateBinaryImage() {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const selectedImage = document.getElementById('imageSelect').value;
+        function drawImage(imagePath, ctx) {
             const img = new Image();
-            img.crossOrigin = 'Anonymous';
             img.onload = function() {
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
+                // Adjust canvas dimensions to match image
+                originalCanvas.width = img.width;
+                originalCanvas.height = img.height;
+                thresholdedCanvas.width = img.width;
+                thresholdedCanvas.height = img.height;
 
-                for (let i = 0; i < data.length; i += 4) {
-                    const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-                    const color = brightness > threshold ? 255 : 0;
-                    data[i] = color;
-                    data[i + 1] = color;
-                    data[i + 2] = color;
-                }
-
-                ctx.putImageData(imageData, 0, 0);
-                binaryImage.src = canvas.toDataURL();
-                
-                // Count "true" pixels
-                let truePixelCount = 0;
-                for (let i = 0; i < data.length; i += 4) {
-                    if (data[i] === 255) {
-                        truePixelCount++;
-                    }
-                }
-                pixelCountDisplay.textContent = 'Pixel Count: ' + truePixelCount;
+                // Draw image on canvas
+                ctx.drawImage(img, 0, 0, img.width, img.height);
+                updateBinaryImage();
             };
-            img.src = selectedImage;
-            originalImage.src = selectedImage;
+            img.src = imagePath;
         }
 
-        // Load the initial image
-        loadButton.addEventListener('click', function() {
-            loadButton.style.display = 'none';
-            imageOptions.style.display = 'block';
+        function updateBinaryImage() {
+            const originalImageData = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height);
+            const originalData = originalImageData.data;
+
+            const thresholdedImageData = thresholdedCtx.createImageData(thresholdedCanvas.width, thresholdedCanvas.height);
+            const thresholdedData = thresholdedImageData.data;
+
+            let truePixelCount = 0;
+
+            for (let i = 0; i < originalData.length; i += 4) {
+                const brightness = (originalData[i] + originalData[i + 1] + originalData[i + 2]) / 3;
+                const color = brightness > threshold ? [255, 0, 0, 255] : [0, 0, 0, 0];
+                thresholdedData[i] = color[0];
+                thresholdedData[i + 1] = color[1];
+                thresholdedData[i + 2] = color[2];
+                thresholdedData[i + 3] = color[3];
+
+                if (color[0] === 255) {
+                    truePixelCount++;
+                }
+            }
+
+            thresholdedCtx.putImageData(thresholdedImageData, 0, 0);
+            pixelCountDisplay.textContent = 'Total number of pixels: ' + truePixelCount/1000 + ' thousand';
+        }
+
+        imageSelect.addEventListener('change', function() {
+            drawImage(imageSelect.value, originalCtx);
         });
 
-        // Update binary image when slider is moved
         thresholdSlider.addEventListener('input', function() {
             threshold = parseInt(thresholdSlider.value);
             updateBinaryImage();
         });
 
-        // Update images when dropdown option is changed
-        imageSelect.addEventListener('change', function() {
-            updateBinaryImage();
-            imageContainer.style.display = 'flex';
-        });
+        // Initial draw with default image
+        drawImage(imageSelect.value, originalCtx);
     </script>
 </body>
 </html>
